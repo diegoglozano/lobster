@@ -42,6 +42,12 @@ pub struct OrderBook {
     asks: BTreeMap<Price, VecDeque<Order>>,
 }
 
+impl Default for OrderBook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OrderBook {
     pub fn new() -> Self {
         OrderBook {
@@ -53,22 +59,14 @@ impl OrderBook {
     pub fn units_at_price(&self, side: OrderSide, price: Price) -> Option<u64> {
         match side {
             OrderSide::Ask => {
-                let Some(ask_queue) = self.asks.get(&price) else {
-                    return None;
-                };
-                let Some(units) = ask_queue.front() else {
-                    return None;
-                };
-                return Some(units.units);
+                let ask_queue = self.asks.get(&price)?;
+                let units = ask_queue.front()?;
+                Some(units.units)
             }
             OrderSide::Bid => {
-                let Some(bid_queue) = self.bids.get(&price) else {
-                    return None;
-                };
-                let Some(units) = bid_queue.front() else {
-                    return None;
-                };
-                return Some(units.units);
+                let bid_queue = self.bids.get(&price)?;
+                let units = bid_queue.front()?;
+                Some(units.units)
             }
         }
     }
@@ -88,31 +86,20 @@ impl OrderBook {
         if self.bids.is_empty() || self.asks.is_empty() {
             return None;
         }
-        let Some((bid_price, _)) = self.bids.last_key_value() else {
-            return None;
-        };
-        let Some((ask_price, _)) = self.asks.first_key_value() else {
-            return None;
-        };
+        let (bid_price, _) = self.bids.last_key_value()?;
+        let (ask_price, _) = self.asks.first_key_value()?;
 
         let bid_price = *bid_price;
         let ask_price = *ask_price;
 
         if bid_price < ask_price {
-            return None;
+            None
         } else {
-            let Some(bid_queue) = self.bids.get_mut(&bid_price) else {
-                return None;
-            };
-            let Some(ask_queue) = self.asks.get_mut(&ask_price) else {
-                return None;
-            };
-            let Some(bid_order) = bid_queue.front_mut() else {
-                return None;
-            };
-            let Some(ask_order) = ask_queue.front_mut() else {
-                return None;
-            };
+            let bid_queue = self.bids.get_mut(&bid_price)?;
+            let ask_queue = self.asks.get_mut(&ask_price)?;
+            let bid_order = bid_queue.front_mut()?;
+            let ask_order = ask_queue.front_mut()?;
+
             let bid_id = bid_order.id;
             let bid_units = bid_order.units;
             let ask_id = ask_order.id;
@@ -123,13 +110,13 @@ impl OrderBook {
                 if bid_queue.is_empty() {
                     self.bids.remove_entry(&bid_price);
                 }
-                ask_order.units = ask_order.units - bid_units;
+                ask_order.units -= bid_units;
             } else if bid_units > ask_units {
                 ask_queue.pop_front();
                 if ask_queue.is_empty() {
                     self.asks.remove_entry(&ask_price);
                 }
-                bid_order.units = bid_order.units - ask_units;
+                bid_order.units -= ask_units;
             } else {
                 ask_queue.pop_front();
                 if ask_queue.is_empty() {
@@ -140,7 +127,7 @@ impl OrderBook {
                     self.bids.remove_entry(&bid_price);
                 }
             };
-            return Some((bid_id, ask_id));
+            Some((bid_id, ask_id))
         }
     }
 }

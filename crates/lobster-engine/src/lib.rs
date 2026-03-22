@@ -1,6 +1,5 @@
 use crossbeam::channel::{Receiver, Sender};
-use lobster_core::{Order, OrderBook, OrderSide, OrderType};
-use rust_decimal::Decimal;
+use lobster_core::{Order, OrderBook};
 use uuid::Uuid;
 
 pub struct Message {
@@ -43,15 +42,10 @@ impl MatchingEngine {
 
     pub fn run(mut self) {
         std::thread::spawn(move || {
-            loop {
-                match self.receiver.recv() {
-                    Ok(msg) => {
-                        self.order_book.add_order(msg.order);
-                        let is_match = self.order_book.match_orders();
-                        msg.response.send(is_match).ok();
-                    }
-                    Err(_) => break,
-                }
+            while let Ok(msg) = self.receiver.recv() {
+                self.order_book.add_order(msg.order);
+                let is_match = self.order_book.match_orders();
+                msg.response.send(is_match).ok();
             }
         });
     }
@@ -60,6 +54,8 @@ impl MatchingEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lobster_core::{Order, OrderSide, OrderType};
+    use rust_decimal::Decimal;
 
     #[test]
     fn submit_orders() {
@@ -71,11 +67,12 @@ mod tests {
             50,
             Decimal::new(50, 0),
         ));
-        handle.submit(Order::new(
+        let result = handle.submit(Order::new(
             OrderSide::Bid,
             OrderType::Limit,
             50,
             Decimal::new(50, 0),
         ));
+        assert!(result.is_some());
     }
 }
