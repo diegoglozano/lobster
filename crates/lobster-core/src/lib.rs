@@ -5,11 +5,13 @@ use uuid::Uuid;
 
 type Price = Decimal;
 
+#[derive(PartialEq, Debug)]
 pub enum OrderSide {
     Ask,
     Bid,
 }
 
+#[derive(PartialEq, Debug)]
 pub enum OrderType {
     Limit,
     Market,
@@ -34,6 +36,42 @@ impl Order {
             units,
             price,
         }
+    }
+    pub fn from_parts(
+        id: Uuid,
+        timestamp: DateTime<Utc>,
+        side: OrderSide,
+        order_type: OrderType,
+        units: u64,
+        price: Price,
+    ) -> Self {
+        Order {
+            id,
+            timestamp,
+            side,
+            order_type,
+            units,
+            price,
+        }
+    }
+
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+    pub fn side(&self) -> &OrderSide {
+        &self.side
+    }
+    pub fn order_type(&self) -> &OrderType {
+        &self.order_type
+    }
+    pub fn units(&self) -> u64 {
+        self.units
+    }
+    pub fn price(&self) -> Price {
+        self.price
+    }
+    pub fn timestamp(&self) -> DateTime<Utc> {
+        self.timestamp
     }
 }
 

@@ -1,0 +1,15 @@
+namespace Lobster;
+
+enum OrderSide:byte { Ask, Bid }
+enum OrderType:byte { Limit , Market }
+
+table Order {
+    id:string;
+    timestamp:int64;
+    side: OrderSide;
+    order_type: OrderType;
+    units:uint64;
+    price:string;
+}
+
+root_type Order;
