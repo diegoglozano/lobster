@@ -1,5 +1,5 @@
 [package]
-name = "lobster-server"
+name = "lobster-client"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,3 +8,5 @@ tokio = { version = "1", features = ["full"] }
 lobster-core = { path = "../../crates/lobster-core" }
 lobster-engine = { path = "../../crates/lobster-engine" }
 lobster-proto = { path = "../../crates/lobster-proto" }
+uuid = { version = "1.22.0", features = ["v4"] }
+rust_decimal = "1.40.0"

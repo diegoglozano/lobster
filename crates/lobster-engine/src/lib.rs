@@ -7,6 +7,7 @@ pub struct Message {
     response: Sender<Option<(Uuid, Uuid)>>,
 }
 
+#[derive(Clone)]
 pub struct EngineHandle {
     sender: Sender<Message>,
 }

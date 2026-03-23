@@ -46,8 +46,8 @@ pub fn to_fb_order(order: &Order) -> Vec<u8> {
         &mut builder,
         &OrderArgs {
             id: Some(id),
-            side: side,
-            order_type: order_type,
+            side,
+            order_type,
             units: order.units(),
             price: Some(price),
             timestamp: order.timestamp().timestamp_nanos_opt().unwrap_or(0),
