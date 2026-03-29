@@ -1,8 +1,23 @@
+use chrono::{DateTime, Utc};
 use lobster_core::Trade;
+use rust_decimal::Decimal;
+use serde;
 use sqlx;
+use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct TradeRepository {
     pool: sqlx::PgPool,
+}
+
+#[derive(sqlx::FromRow, serde::Serialize)]
+pub struct TradeRow {
+    id: Uuid,
+    bid_id: Uuid,
+    ask_id: Uuid,
+    price: Decimal,
+    quantity: i64,
+    timestamp: DateTime<Utc>,
 }
 
 impl TradeRepository {
@@ -30,6 +45,23 @@ impl TradeRepository {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn get_trades(&self, limit: i64, offset: i64) -> Result<Vec<TradeRow>, sqlx::Error> {
+        sqlx::query_as::<_, TradeRow>(
+            "SELECT * FROM trades ORDER BY timestamp DESC LIMIT $1 OFFSET $2",
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    pub async fn get_trade(&self, id: Uuid) -> Result<TradeRow, sqlx::Error> {
+        sqlx::query_as::<_, TradeRow>("SELECT * FROM trades WHERE id = $1")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
     }
 }
 
@@ -62,6 +94,11 @@ mod tests {
 
         let trade = order_book.match_orders().unwrap();
 
+        // 4. insert trade
         repo.insert_trade(&trade).await.unwrap();
+
+        // 5. list trades
+        let trades = repo.get_trades(100, 0);
+        assert_eq!(trades.await.unwrap().len(), 1)
     }
 }

@@ -31,7 +31,8 @@ lobster/
 │   └── lobster-db        # PostgreSQL persistence layer (sqlx)
 └── bins/
     ├── lobster-server    # TCP server accepting order messages
-    └── lobster-client    # Test client for manual end-to-end testing
+    ├── lobster-client    # Test client for manual end-to-end testing
+    └── lobster-api       # REST API for querying trade history (axum)
 ```
 
 ### `lobster-core`
@@ -73,6 +74,8 @@ The persistence layer. Uses `sqlx` for async PostgreSQL access:
 - `TradeRepository` — owns a `PgPool` connection pool
 - `run_migrations()` — applies SQL migrations via `sqlx::migrate!`
 - `insert_trade()` — persists a `Trade` to the `trades` table
+- `get_trades(limit, offset)` — paginated trade history
+- `get_trade(id)` — single trade by UUID
 - Integration tested with `testcontainers` — each test spins up a real Postgres container, runs migrations, and tears down automatically
 
 ### `lobster-server`
@@ -92,6 +95,15 @@ A minimal test client for manual end-to-end testing:
 
 - Connects to the server, sends a FlatBuffers-encoded ask then a matching bid
 - Reads and prints the response for each order
+
+### `lobster-api`
+
+REST API for querying trade history. Built with `axum` on Tokio:
+
+- `GET /trades?limit=N&offset=N` — paginated trade history, ordered by timestamp descending
+- `GET /trades/:id` — single trade by UUID
+- Shares `TradeRepository` across requests via axum `State`
+- Runs on port 3000
 
 ---
 
@@ -115,29 +127,33 @@ Persisting a trade to Postgres takes milliseconds — orders of magnitude slower
 
 ---
 
-## Running tests
-
-```bash
-cargo test
-```
-
-```bash
-cargo clippy
-```
-
----
-
 ## Running
 
 Start Postgres (requires Colima or Docker):
 ```bash
 colima start
+```
+
+Start the matching engine + TCP server:
+```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/lobster cargo run --bin lobster-server
 ```
 
-In another terminal:
+Start the REST API:
+```bash
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/lobster cargo run --bin lobster-api
+```
+
+Send test orders:
 ```bash
 cargo run --bin lobster-client
+```
+
+Query trades:
+```bash
+curl http://localhost:3000/trades
+curl http://localhost:3000/trades?limit=5&offset=0
+curl http://localhost:3000/trades/<uuid>
 ```
 
 ## Running tests
@@ -155,5 +171,5 @@ cargo clippy      # lints
 - [x] Phase 2 — Single-writer concurrency via channels (`lobster-engine`)
 - [x] Phase 3 — FlatBuffers zero-copy serialization (`lobster-proto`)
 - [x] Phase 4 — Async TCP server and test client (`lobster-server`, `lobster-client`)
-- [ ] Phase 5 — REST API with `axum` for querying trade history (`lobster-api`)
+- [x] Phase 5 — Trade persistence + REST API (`lobster-db`, `lobster-api`)
 - [ ] Phase 6 — Structured logging with `tracing`, Prometheus metrics, Dockerfile + Grafana dashboard
