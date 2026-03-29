@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::Decimal;
+use std::cmp::min;
 use std::collections::{BTreeMap, VecDeque};
 use uuid::Uuid;
 
@@ -120,7 +121,7 @@ impl OrderBook {
         }
     }
 
-    pub fn match_orders(&mut self) -> Option<(Uuid, Uuid)> {
+    pub fn match_orders(&mut self) -> Option<Trade> {
         if self.bids.is_empty() || self.asks.is_empty() {
             return None;
         }
@@ -165,8 +166,57 @@ impl OrderBook {
                     self.bids.remove_entry(&bid_price);
                 }
             };
-            Some((bid_id, ask_id))
+            Some(Trade {
+                bid_id,
+                ask_id,
+                price: ask_price,
+                quantity: min(bid_units, ask_units),
+                timestamp: Utc::now(),
+            })
         }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Trade {
+    bid_id: Uuid,
+    ask_id: Uuid,
+    price: Price,
+    quantity: u64,
+    timestamp: DateTime<Utc>,
+}
+
+impl Trade {
+    pub fn new(
+        bid_id: Uuid,
+        ask_id: Uuid,
+        price: Price,
+        quantity: u64,
+        timestamp: DateTime<Utc>,
+    ) -> Self {
+        Trade {
+            bid_id,
+            ask_id,
+            price,
+            quantity,
+            timestamp,
+        }
+    }
+
+    pub fn bid_id(&self) -> Uuid {
+        self.bid_id
+    }
+    pub fn ask_id(&self) -> Uuid {
+        self.ask_id
+    }
+    pub fn price(&self) -> Price {
+        self.price
+    }
+    pub fn quantity(&self) -> u64 {
+        self.quantity
+    }
+    pub fn timestamp(&self) -> DateTime<Utc> {
+        self.timestamp
     }
 }
 
@@ -209,8 +259,8 @@ mod tests {
         order_book.add_order(ask);
         order_book.add_order(bid);
 
-        let is_match = order_book.match_orders();
-        assert_eq!(is_match, Some((bid_id, ask_id)));
+        let is_match = order_book.match_orders().unwrap();
+        assert_eq!((is_match.bid_id(), is_match.ask_id()), (bid_id, ask_id),);
         assert_eq!(
             order_book.units_at_price(OrderSide::Bid, Decimal::new(50, 0)),
             None,
@@ -232,8 +282,8 @@ mod tests {
         order_book.add_order(ask);
         order_book.add_order(bid);
 
-        let is_match = order_book.match_orders();
-        assert_eq!(is_match, Some((bid_id, ask_id)));
+        let is_match = order_book.match_orders().unwrap();
+        assert_eq!((is_match.bid_id(), is_match.ask_id()), (bid_id, ask_id));
 
         assert_eq!(
             order_book.units_at_price(OrderSide::Bid, Decimal::new(50, 0)),
@@ -255,8 +305,8 @@ mod tests {
         order_book.add_order(ask);
         order_book.add_order(bid);
 
-        let is_match = order_book.match_orders();
-        assert_eq!(is_match, Some((bid_id, ask_id)));
+        let is_match = order_book.match_orders().unwrap();
+        assert_eq!((is_match.bid_id(), is_match.ask_id()), (bid_id, ask_id));
         assert_eq!(
             order_book.units_at_price(OrderSide::Bid, Decimal::new(50, 0)),
             Some(1)

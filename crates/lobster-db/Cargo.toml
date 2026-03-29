@@ -1,0 +1,14 @@
+[package]
+name = "lobster-db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "uuid", "chrono", "rust_decimal"] }
+lobster-core = { path = "../lobster-core" }
+
+[dev-dependencies]
+rust_decimal = "1.40.0"
+testcontainers = "0.27.2"
+testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
+tokio = { version = "1", features = ["full"] }

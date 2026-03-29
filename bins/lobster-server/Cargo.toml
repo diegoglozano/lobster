@@ -8,3 +8,4 @@ tokio = { version = "1", features = ["full"] }
 lobster-core = { path = "../../crates/lobster-core" }
 lobster-engine = { path = "../../crates/lobster-engine" }
 lobster-proto = { path = "../../crates/lobster-proto" }
+lobster-db = { path = "../../crates/lobster-db" }

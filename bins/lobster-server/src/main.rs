@@ -1,3 +1,4 @@
+use lobster_db::TradeRepository;
 use lobster_engine::{EngineHandle, MatchingEngine};
 use lobster_proto::{order_generated::lobster::root_as_order, to_core_order};
 use tokio::{
@@ -7,9 +8,20 @@ use tokio::{
 
 #[tokio::main]
 async fn main() {
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
     let listener = TcpListener::bind("127.0.0.1:7777").await.unwrap();
-    let (engine, handle) = MatchingEngine::new();
+    let (engine, handle, mut trade_rx) = MatchingEngine::new();
     engine.run();
+
+    let repo = TradeRepository::new(&database_url).await;
+    repo.run_migrations().await;
+
+    tokio::spawn(async move {
+        while let Some(trade) = trade_rx.recv().await {
+            repo.insert_trade(&trade).await.unwrap();
+        }
+    });
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
@@ -27,15 +39,18 @@ async fn process(mut socket: TcpStream, handle: EngineHandle) {
         socket.read_exact(&mut buffer).await.unwrap();
         let fb_order = root_as_order(&buffer).unwrap();
         let order = to_core_order(&fb_order);
-        let result = handle.submit(order);
+        let handle_clone = handle.clone();
+        let result = tokio::task::spawn_blocking(move || handle_clone.submit(order))
+            .await
+            .unwrap();
         match result {
             None => {
                 socket.write_u8(0u8).await.unwrap();
             }
-            Some((bid_id, ask_id)) => {
+            Some(trade) => {
                 socket.write_u8(1u8).await.unwrap();
-                socket.write_all(bid_id.as_bytes()).await.unwrap();
-                socket.write_all(ask_id.as_bytes()).await.unwrap();
+                socket.write_all(trade.bid_id().as_bytes()).await.unwrap();
+                socket.write_all(trade.ask_id().as_bytes()).await.unwrap();
             }
         };
     }

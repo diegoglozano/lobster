@@ -1,20 +1,20 @@
-use crossbeam::channel::{Receiver, Sender};
-use lobster_core::{Order, OrderBook};
-use uuid::Uuid;
+use crossbeam::channel::{Receiver as CrossbeamReceiver, Sender as CrossbeamSender, bounded};
+use lobster_core::{Order, OrderBook, Trade};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 pub struct Message {
     order: Order,
-    response: Sender<Option<(Uuid, Uuid)>>,
+    response: CrossbeamSender<Option<Trade>>,
 }
 
 #[derive(Clone)]
 pub struct EngineHandle {
-    sender: Sender<Message>,
+    sender: CrossbeamSender<Message>,
 }
 
 impl EngineHandle {
-    pub fn submit(&self, order: Order) -> Option<(Uuid, Uuid)> {
-        let (response_tx, response_rx) = crossbeam::channel::bounded(1);
+    pub fn submit(&self, order: Order) -> Option<Trade> {
+        let (response_tx, response_rx) = bounded(1);
         self.sender
             .send(Message {
                 order,
@@ -27,18 +27,23 @@ impl EngineHandle {
 
 pub struct MatchingEngine {
     order_book: OrderBook,
-    receiver: Receiver<Message>,
+    receiver: CrossbeamReceiver<Message>,
+    trade_tx: UnboundedSender<Trade>,
 }
 
 impl MatchingEngine {
-    pub fn new() -> (Self, EngineHandle) {
+    pub fn new() -> (Self, EngineHandle, UnboundedReceiver<Trade>) {
         let (tx, rx) = crossbeam::channel::unbounded();
+
+        let (trade_tx, trade_rx) = unbounded_channel();
+
         let engine = MatchingEngine {
             order_book: OrderBook::new(),
             receiver: rx,
+            trade_tx,
         };
         let handle = EngineHandle { sender: tx };
-        (engine, handle)
+        (engine, handle, trade_rx)
     }
 
     pub fn run(mut self) {
@@ -46,7 +51,12 @@ impl MatchingEngine {
             while let Ok(msg) = self.receiver.recv() {
                 self.order_book.add_order(msg.order);
                 let is_match = self.order_book.match_orders();
-                msg.response.send(is_match).ok();
+
+                // TODO: avoid two clones per request
+                msg.response.send(is_match.clone()).ok();
+                if let Some(trade) = is_match {
+                    self.trade_tx.send(trade.clone()).ok();
+                }
             }
         });
     }
@@ -60,7 +70,7 @@ mod tests {
 
     #[test]
     fn submit_orders() {
-        let (engine, handle) = MatchingEngine::new();
+        let (engine, handle, _) = MatchingEngine::new();
         engine.run();
         handle.submit(Order::new(
             OrderSide::Ask,

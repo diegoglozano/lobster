@@ -8,3 +8,4 @@ crossbeam = "0.8.4"
 lobster-core = { path = "../lobster-core" }
 uuid = { version = "1.22.0", features = ["v4"] }
 rust_decimal = "1.40.0"
+tokio = { version = "1", features = ["full"] }
