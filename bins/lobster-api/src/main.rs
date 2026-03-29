@@ -4,6 +4,7 @@ use axum::{
     routing::get,
 };
 use lobster_db::{TradeRepository, TradeRow};
+use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -14,12 +15,14 @@ struct TradeQuery {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let repo = TradeRepository::new(&database_url).await;
     let app = Router::new()
         .route("/", get(root))
         .route("/trades", get(get_trades))
         .route("/trades/:id", get(get_trade))
+        .layer(TraceLayer::new_for_http())
         .with_state(repo);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
