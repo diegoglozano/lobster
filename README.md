@@ -32,7 +32,8 @@ lobster/
 └── bins/
     ├── lobster-server    # TCP server accepting order messages
     ├── lobster-client    # Test client for manual end-to-end testing
-    └── lobster-api       # REST API for querying trade history (axum)
+    ├── lobster-api       # REST API for querying trade history (axum)
+    └── lobster-bench     # Concurrent load test with p50/p99 latency stats
 ```
 
 ### `lobster-core`
@@ -105,6 +106,15 @@ REST API for querying trade history. Built with `axum` on Tokio:
 - Shares `TradeRepository` across requests via axum `State`
 - Runs on port 3000
 
+### `lobster-bench`
+
+Concurrent load test for the TCP server:
+
+- Spawns 10 Tokio tasks, each sending 1000 FlatBuffers-encoded orders over a persistent TCP connection
+- Even tasks send asks, odd tasks send bids at a crossing price — generating matches
+- Measures per-order round-trip latency with `std::time::Instant`
+- Reports p50 and p99 latency in microseconds
+
 ---
 
 ## Key design decisions
@@ -149,6 +159,11 @@ Send test orders:
 cargo run --bin lobster-client
 ```
 
+Run load test:
+```bash
+cargo run --release --bin lobster-bench
+```
+
 Query trades:
 ```bash
 curl http://localhost:3000/trades
@@ -172,4 +187,6 @@ cargo clippy      # lints
 - [x] Phase 3 — FlatBuffers zero-copy serialization (`lobster-proto`)
 - [x] Phase 4 — Async TCP server and test client (`lobster-server`, `lobster-client`)
 - [x] Phase 5 — Trade persistence + REST API (`lobster-db`, `lobster-api`)
-- [ ] Phase 6 — Structured logging with `tracing`, Prometheus metrics, Dockerfile + Grafana dashboard
+- [x] Phase 6 — Structured logging with `tracing` (`lobster-server`, `lobster-api`)
+- [x] Phase 6 — Load testing with p50/p99 latency stats (`lobster-bench`)
+- [ ] Phase 6 — Dockerfile + Docker Compose + Grafana dashboard

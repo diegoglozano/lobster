@@ -177,7 +177,7 @@ impl OrderBook {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, serde::Serialize)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Trade {
     bid_id: Uuid,
     ask_id: Uuid,

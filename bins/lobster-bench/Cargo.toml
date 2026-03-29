@@ -1,0 +1,10 @@
+[package]
+name = "lobster-bench"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rust_decimal = "1.41.0"
+tokio = { version = "1.50.0", features = ["full"] }
+lobster-core = { path = "../../crates/lobster-core" }
+lobster-proto = { path = "../../crates/lobster-proto" }
